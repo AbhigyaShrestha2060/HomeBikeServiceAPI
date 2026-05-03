@@ -1,7 +1,8 @@
-const Feedback = require('./../models/feedbackModel');
+import Feedback from '../models/feedbackModel.js';
 
-exports.submitFeedback = async function (req, res) {
+export const submitFeedback = async (req, res) => {
   const userId = req.user.id;
+
   try {
     const { subject, message, rating } = req.body;
     const feedback = new Feedback({
@@ -17,7 +18,7 @@ exports.submitFeedback = async function (req, res) {
   }
 };
 
-exports.getFeedback = async function (req, res) {
+export const getFeedback = async (req, res) => {
   try {
     const feedback = await Feedback.find({}).populate('userId');
     res.json({ feedback });
@@ -25,3 +26,5 @@ exports.getFeedback = async function (req, res) {
     res.status(400).json({ error: err.message });
   }
 };
+
+export default { submitFeedback, getFeedback };

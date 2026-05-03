@@ -1,10 +1,12 @@
-const router = require('express').Router();
-const messageController = require('../controllers/messageController');
-const { authGuard } = require('../middleware/authGuard');
+import express from 'express';
+import * as messageController from '../controllers/messageController.js';
+import { authGuard } from '../middleware/authGuard.js';
+
+const router = express.Router();
 
 router.post('/send', authGuard, messageController.createMessage);
-router.get('/get/:id', authGuard, messageController.getAllMessages);
-router.get('/get_by_id/:id', authGuard, messageController.getMessageById);
-router.post('/send/file', messageController.saveFile);
+router.get('/:id', authGuard, messageController.getAllMessages);
+router.get('/detail/:id', authGuard, messageController.getMessageById);
+router.post('/file', messageController.saveFile);
 
-module.exports = router;
+export default router;

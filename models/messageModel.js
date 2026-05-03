@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const messageSchema = new mongoose.Schema({
   message: {
@@ -8,12 +8,12 @@ const messageSchema = new mongoose.Schema({
   sender: {
     type: mongoose.Schema.ObjectId,
     required: true,
-    ref: 'users',
+    ref: 'User',
   },
   receiver: {
     type: mongoose.Schema.ObjectId,
     required: true,
-    ref: 'users',
+    ref: 'User',
   },
   type: {
     type: String,
@@ -27,4 +27,4 @@ const messageSchema = new mongoose.Schema({
 
 const Message = mongoose.model('messages', messageSchema);
 
-module.exports = Message;
+export default Message;

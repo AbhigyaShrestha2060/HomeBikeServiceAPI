@@ -1,8 +1,13 @@
-const express = require('express');
+import express from 'express';
+import { getDashboardStats } from '../controllers/adminController.js';
+import { authGuard, isAdmin } from '../middleware/authGuard.js';
+
 const router = express.Router();
-const { getDashboardStats } = require('../controllers/adminController');
 
-// Define the route for getting dashboard statistics
-router.get('/dashboard_stats', getDashboardStats);
+/**
+ * Admin routes - protected
+ */
+router.get('/dashboard', authGuard, isAdmin, getDashboardStats);
+router.get('/dashboard_stats', authGuard, isAdmin, getDashboardStats);
 
-module.exports = router;
+export default router;

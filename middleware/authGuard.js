@@ -1,98 +1,60 @@
-const jwt = require('jsonwebtoken');
-const authGuard = (req, res, next) => {
-  // check incoming data
-  console.log(req.headers); //pass
+import jwt from 'jsonwebtoken';
+import User from '../models/userModel.js';
+import { AppError, asyncHandler } from '../utils/errorHandler.js';
 
-  // get authorization data from headers
-  const authHeader = req.headers.authorization;
+/**
+ * Verify JWT token and attach user to request
+ */
+export const authGuard = asyncHandler(async (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1] || req.cookies?.token;
 
-  // check or validate
-  if (!authHeader) {
-    return res.status(400).json({
-      success: false,
-      message: 'Auth header is missing',
-    });
+  if (!token) {
+    throw new AppError('Not authorized to access this resource', 401);
   }
 
-  // Split the data (Format : 'Bearer token-joyboy') -> only token
-  const token = authHeader.split(' ')[1];
-
-  // if token is not found : stop the process (res)
-  if (!token || token === '') {
-    return res.status(400).json({
-      success: false,
-      message: 'Please provide a token',
-    });
-  }
-
-  // if token is found then verify
   try {
-    const decodeUserData = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decodeUserData;
-    next();
-  } catch (error) {
-    console.log(error);
-    return res.status(400).json({
-      success: false,
-      message: 'Not Authenticated',
-    });
-  }
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = await User.findById(decoded.id).select('-password');
 
-  // if verified : next (function in controller)
-  // if not verified : not auth
-};
-
-// Admin Guard
-const adminGuard = (req, res, next) => {
-  // check incoming data
-  console.log(req.headers); //pass
-
-  // get authorization data from headers
-  const authHeader = req.headers.authorization;
-
-  // check or validate
-  if (!authHeader) {
-    return res.status(400).json({
-      success: false,
-      message: 'Auth header is missing',
-    });
-  }
-
-  // Split the data (Format : 'Bearer token-joyboy') -> only token
-  const token = authHeader.split(' ')[1];
-
-  // if token is not found : stop the process (res)
-  if (!token || token === '') {
-    return res.status(400).json({
-      success: false,
-      message: 'Please provide a token',
-    });
-  }
-
-  // if token is found then verify
-  try {
-    const decodeUserData = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decodeUserData; // id, is admin
-    if (!req.user.isAdmin) {
-      return res.status(400).json({
-        success: false,
-        message: 'You are not authorized to perform this action',
-      });
+    if (!req.user) {
+      throw new AppError('User not found', 404);
     }
+
     next();
   } catch (error) {
-    console.log(error);
-    return res.status(400).json({
-      success: false,
-      message: 'Not Authenticated',
-    });
+    if (error.name === 'TokenExpiredError') {
+      throw new AppError('Token has expired', 401);
+    }
+    throw new AppError('Invalid token', 401);
+  }
+});
+
+/**
+ * Verify user is admin
+ */
+export const isAdmin = asyncHandler((req, res, next) => {
+  if (!req.user?.isAdmin) {
+    throw new AppError('Admin access required', 403);
+  }
+  next();
+});
+
+/**
+ * Optional authentication - doesn't fail if no token
+ */
+export const optionalAuth = asyncHandler(async (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1] || req.cookies?.token;
+
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      req.user = await User.findById(decoded.id).select('-password');
+    } catch (error) {
+      // Silently fail optional auth
+    }
   }
 
-  // if verified : next (function in controller)
-  // if not verified : not auth
-};
+  next();
+});
 
-module.exports = {
-  authGuard,
-  adminGuard,
-};
+export default authGuard;

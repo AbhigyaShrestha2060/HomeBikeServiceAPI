@@ -1,11 +1,8 @@
-const Notification = require('../models/notificationModel');
+import Notification from '../models/notificationModel.js';
 
-exports.createNotification = async (req, res) => {
-  console.log(req.body);
-  const { message, receiver } = req.body;
-  const { sender } = req.body;
+export const createNotification = async (req, res) => {
+  const { message, receiver, sender } = req.body;
 
-  // Validate
   if (!message || !receiver) {
     return res.status(400).json({
       message: 'Please enter all fields',
@@ -15,8 +12,8 @@ exports.createNotification = async (req, res) => {
 
   try {
     const newNotification = new Notification({
-      message: message,
-      receiver: receiver,
+      message,
+      receiver,
       timestamp: new Date(),
     });
 
@@ -25,7 +22,7 @@ exports.createNotification = async (req, res) => {
     res.status(200).json({
       message: `Notification received successfully from ${sender}`,
       success: true,
-      newNotification: newNotification,
+      newNotification,
     });
   } catch (error) {
     console.error(error);
@@ -36,3 +33,5 @@ exports.createNotification = async (req, res) => {
     });
   }
 };
+
+export default { createNotification };

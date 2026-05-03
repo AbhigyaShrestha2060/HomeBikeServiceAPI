@@ -1,18 +1,17 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const bookingSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'users' },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   bikeId: { type: mongoose.Schema.Types.ObjectId, ref: 'bikeProduct' },
   bookingAddress: { type: String },
   bikeChasisNumber: { type: String },
   bikeDescription: { type: String },
   bookingTime: { type: Date },
-  status: { type: String, default: 'pending' }, 
+  status: { type: String, default: 'pending' },
   total: { type: Number },
   bikeNumber: { type: String },
-  // If user-specific bookings are needed
 });
 
-const Cart = mongoose.model('booking', bookingSchema);
+const Booking = mongoose.model('booking', bookingSchema);
 
-module.exports = Cart;
+export default Booking;

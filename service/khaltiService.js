@@ -1,53 +1,37 @@
-const axios = require('axios');
+import axios from 'axios';
 
-// Function to verify Khalti Payment
-async function verifyKhaltiPayment(pidx) {
+export const verifyKhaltiPayment = async (pidx) => {
   const headersList = {
     Authorization: `Key ${process.env.KHALTI_SECRET_KEY}`,
     'Content-Type': 'application/json',
   };
-
-  const bodyContent = JSON.stringify({ pidx });
 
   const reqOptions = {
     url: `${process.env.KHALTI_GATEWAY_URL}/api/v2/epayment/lookup/`,
     method: 'POST',
     headers: headersList,
-    data: bodyContent,
+    data: { pidx },
   };
 
-  try {
-    const response = await axios.request(reqOptions);
-    return response.data;
-  } catch (error) {
-    console.error('Error verifying Khalti payment:', error);
-    throw error;
-  }
-}
+  const response = await axios.request(reqOptions);
+  return response.data;
+};
 
-// Function to initialize Khalti Payment
-async function initializeKhaltiPayment(details) {
+export const initializeKhaltiPayment = async (details) => {
   const headersList = {
     Authorization: `Key ${process.env.KHALTI_SECRET_KEY}`,
     'Content-Type': 'application/json',
   };
 
-  const bodyContent = JSON.stringify(details);
-
   const reqOptions = {
     url: `${process.env.KHALTI_GATEWAY_URL}/api/v2/epayment/initiate/`,
     method: 'POST',
     headers: headersList,
-    data: bodyContent,
+    data: details,
   };
 
-  try {
-    const response = await axios.request(reqOptions);
-    return response.data;
-  } catch (error) {
-    console.error('Error initializing Khalti payment:', error);
-    throw error;
-  }
-}
+  const response = await axios.request(reqOptions);
+  return response.data;
+};
 
-module.exports = { verifyKhaltiPayment, initializeKhaltiPayment };
+export default { verifyKhaltiPayment, initializeKhaltiPayment };

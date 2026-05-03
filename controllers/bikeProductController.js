@@ -1,48 +1,42 @@
-const path = require('path');
-const bikeProductModel = require('../models/bikeProductModel');
-const fs = require('fs');
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const createBikeProduct = async (req, res) => {
-  console.log(req.body);
-  console.log(req.files);
+import BikeProduct from '../models/bikeProductModel.js';
 
-  // Destructuring the body
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+export const createBikeProduct = async (req, res) => {
   const { bikeName, bikeModel, bikePrice } = req.body;
-  // Validating the data
+
   if (!bikeName || !bikeModel || !bikePrice) {
     return res.status(400).json({ message: 'Please fill in all fields' });
   }
 
-  // Validating the image
   if (!req.files || !req.files.bikeImage) {
     return res.status(400).json({ message: 'Please upload an image' });
   }
 
   const { bikeImage } = req.files;
-
-  //Upload the image and generate new image
-
   const bikeImageName = `${Date.now()}-${bikeImage.name}`;
-
-  // Upload Path
   const bikeImageUploadPath = path.join(
     __dirname,
-    `../public/bikes/${bikeImageName}`
+    '../public/bikes',
+    bikeImageName,
   );
 
-  // Moving the image to the upload path
   try {
     await bikeImage.mv(bikeImageUploadPath);
 
-    // Saving the bike to the database
-    const newBike = new bikeProductModel({
-      bikeName: bikeName,
-      bikeModel: bikeModel,
-      bikePrice: bikePrice,
+    const newBike = new BikeProduct({
+      bikeName,
+      bikeModel,
+      bikePrice,
       bikeImage: bikeImageName,
     });
 
-    newBike.save();
+    await newBike.save();
     res.status(201).json({
       success: true,
       message: 'Product Created',
@@ -53,53 +47,49 @@ const createBikeProduct = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Internal server error',
-      error: 'error',
+      error: error.message,
     });
   }
 };
 
-// Fetching all bikes from the database
-const getAllBikes = async (req, res) => {
+export const getAllBikes = async (req, res) => {
   try {
-    const bikes = await bikeProductModel.find({});
+    const bikes = await BikeProduct.find({});
 
-    res.status(201).json({
+    res.status(200).json({
       success: true,
       message: 'All Bikes Fetched',
-      bikes: bikes,
+      bikes,
     });
   } catch (error) {
-    console.log(error);
     res.status(500).json({
       success: false,
       message: 'Internal server error',
-      error: error,
+      error: error.message,
     });
   }
 };
-// Get all bike model
-const getAllBikeModel = async (req, res) => {
+
+export const getAllBikeModel = async (req, res) => {
   try {
-    const bikeModel = await bikeProductModel.find().distinct('bikeModel');
-    res.status(201).json({
+    const bikeModel = await BikeProduct.find().distinct('bikeModel');
+    res.status(200).json({
       success: true,
       message: 'Categories fetched successfully',
       categories: bikeModel,
     });
   } catch (error) {
-    console.log(error);
     res.status(500).json({
       success: false,
       message: 'Internal Server Error',
-      error,
+      error: error.message,
     });
   }
 };
 
-// Fetching a single bike from the database
-const getSingleBike = async (req, res) => {
+export const getSingleBike = async (req, res) => {
   try {
-    const bike = await bikeProductModel.findById(req.params.id);
+    const bike = await BikeProduct.findById(req.params.id);
 
     if (!bike) {
       return res.status(404).json({
@@ -108,91 +98,101 @@ const getSingleBike = async (req, res) => {
       });
     }
 
-    res.status(201).json({
+    res.status(200).json({
       success: true,
       message: 'Product Fetched',
-      bike: bike,
+      bike,
     });
   } catch (error) {
-    console.log(error);
     res.status(500).json({
       success: false,
       message: 'Internal server error',
-      error: error,
+      error: error.message,
     });
   }
 };
 
-const updateBike = async (req, res) => {
+export const updateBike = async (req, res) => {
   try {
-    // if there is image
     if (req.files && req.files.bikeImage) {
       const { bikeImage } = req.files;
       const bikeImageName = `${Date.now()}-${bikeImage.name}`;
       const bikeImageUploadPath = path.join(
         __dirname,
-        `../public/bikes/${bikeImageName}`
+        '../public/bikes',
+        bikeImageName,
       );
-      // Moving the image to the upload path
+
       await bikeImage.mv(bikeImageUploadPath);
       req.body.bikeImage = bikeImageName;
 
-      // if image is uploaded and req.body is uploaded
-      if (req.body.bikeImage) {
-        const existingbike = await bikeProductModel.findByIdAndUpdate(
-          req.params.id
-        );
-        imagePath = path.join(
+      const existingBike = await BikeProduct.findById(req.params.id);
+      if (existingBike?.bikeImage) {
+        const imagePath = path.join(
           __dirname,
-          `../public/bikes/${existingbike.bikeImage}`
+          '../public/bikes',
+          existingBike.bikeImage,
         );
+        if (fs.existsSync(imagePath)) {
+          fs.unlinkSync(imagePath);
+        }
       }
     }
-    const updateBike = await bikeProductModel.findByIdAndUpdate(
+
+    const updatedBike = await BikeProduct.findByIdAndUpdate(
       req.params.id,
-      req.body
+      req.body,
+      { new: true, runValidators: true },
     );
 
-    res.status(201).json({
+    if (!updatedBike) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found',
+      });
+    }
+
+    res.status(200).json({
       success: true,
       message: 'Product Updated',
-      updateBike: updateBike,
+      updateBike: updatedBike,
     });
   } catch (error) {
-    console.log(error);
     res.status(500).json({
       success: false,
       message: 'Internal server error',
-      error: error,
+      error: error.message,
     });
   }
 };
-// Deleting a bike from the database
-const deleteBike = async (req, res) => {
-  try {
-    await bikeProductModel.findByIdAndDelete(req.params.id);
 
-    res.status(201).json({
+export const deleteBike = async (req, res) => {
+  try {
+    const deletedBike = await BikeProduct.findByIdAndDelete(req.params.id);
+
+    if (!deletedBike) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found',
+      });
+    }
+
+    res.status(200).json({
       success: true,
       message: 'Product Deleted',
     });
   } catch (error) {
-    console.log(error);
     res.status(500).json({
       success: false,
       message: 'Internal server error',
-      error: error,
+      error: error.message,
     });
   }
 };
 
-const paginationBike = async (req, res) => {
-  const pageNo = req.query.page || 1;
-  const resultPerPage = parseInt(req.query.limit) || 2;
-
+export const paginationBike = async (req, res) => {
   try {
-    // get only bikeNames
-    const bikes = await bikeProductModel.aggregate([
+    const bikes = await BikeProduct.aggregate([
       {
         $group: {
           _id: '$bikeName',
@@ -204,65 +204,64 @@ const paginationBike = async (req, res) => {
     ]);
 
     if (bikes.length === 0) {
-      return res.status(404).json({
-        success: false,
+      return res.status(200).json({
+        success: true,
         message: 'No product found',
+        bikes: [],
       });
     }
-    res.status(201).json({
+
+    res.status(200).json({
       success: true,
       message: 'Product Fetched',
-      bikes: bikes,
+      bikes,
     });
   } catch (error) {
-    console.log(error);
     res.status(500).json({
       success: false,
       message: 'Internal server error',
-      error: error,
+      error: error.message,
     });
   }
 };
 
-// Get total Bike
-const getTotalBike = async (req, res) => {
+export const getTotalBike = async (req, res) => {
   try {
-    const totalBikes = await bikeProductModel.find({}).countDocuments();
-    res.status(201).json({
+    const totalBikes = await BikeProduct.countDocuments({});
+    res.status(200).json({
       success: true,
       message: 'Total Bikes',
       count: totalBikes,
     });
   } catch (error) {
-    console.log(error);
     res.status(500).json({
       success: false,
       message: 'Internal Server Error',
-      error,
+      error: error.message,
     });
   }
 };
 
-const getBikeByModel = async (req, res) => {
+export const getBikeByModel = async (req, res) => {
   const bikeName = req.query.bikeName;
+
   try {
-    const bikes = await bikeProductModel.find({ bikeName: bikeName });
+    const bikes = await BikeProduct.find({ bikeName });
     res.status(200).json({
       success: true,
       message: 'Bikes Model fetched successfully',
-      bikes: bikes,
+      bikes,
     });
   } catch (error) {
-    console.log(error);
     res.status(500).json({
       success: false,
       message: 'Internal Server Error',
-      error,
+      error: error.message,
     });
   }
 };
 
-module.exports = {
+export default {
   createBikeProduct,
   getAllBikes,
   getSingleBike,

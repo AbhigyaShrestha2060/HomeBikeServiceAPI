@@ -1,12 +1,12 @@
-const User = require('../models/userModel');
-const Bikes = require('../models/bikeProductModel');
-const Bookings = require('../models/bookingModel');
+import BikeProduct from '../models/bikeProductModel.js';
+import Booking from '../models/bookingModel.js';
+import User from '../models/userModel.js';
 
-const getDashboardStats = async (req, res) => {
+export const getDashboardStats = async (req, res) => {
   try {
     const totalUserLogins = await User.countDocuments({});
-    const totalBikesAdded = await Bikes.countDocuments({});
-    const totalBookings = await Bookings.countDocuments({});
+    const totalBikesAdded = await BikeProduct.countDocuments({});
+    const totalBookings = await Booking.countDocuments({});
 
     res.status(200).json({
       totalUserLogins,
@@ -17,4 +17,5 @@ const getDashboardStats = async (req, res) => {
     res.status(500).json({ message: 'Error fetching dashboard statistics' });
   }
 };
-module.exports = { getDashboardStats };
+
+export default { getDashboardStats };

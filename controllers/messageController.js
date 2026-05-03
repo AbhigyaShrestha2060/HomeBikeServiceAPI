@@ -1,14 +1,16 @@
-const messageModel = require('../models/messageModel');
-const { getIo, users } = require('../service/socketService'); // Import the socket service
-const fs = require('fs');
-const path = require('path');
-// Create a new message
-createMessage = async (req, res) => {
-  console.log(req.body);
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+import Message from '../models/messageModel.js';
+import { getIo, users } from '../service/socketService.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+export const createMessage = async (req, res) => {
   const { message, receiver, type } = req.body;
   const sender = req.user.id;
 
-  // Validate
   if (!message || !receiver) {
     return res.status(400).json({
       message: 'Please enter all fields',
@@ -17,32 +19,27 @@ createMessage = async (req, res) => {
   }
 
   try {
-    const newMessage = new messageModel({
-      message: message,
-      sender: sender,
-      receiver: receiver,
-      type: type,
+    const newMessage = new Message({
+      message,
+      sender,
+      receiver,
+      type,
       timestamp: new Date(),
     });
 
     await newMessage.save();
-    const messageWithUsers = await messageModel
-      .findById(newMessage._id)
+    const messageWithUsers = await Message.findById(newMessage._id)
       .populate('sender')
       .populate('receiver');
 
-    // Print the message with users
-    console.log(messageWithUsers);
+    const io = getIo();
 
-    const io = getIo(); // Get the initialized io instance
-
-    // emit message
     io.to(users[sender]).to(users[receiver]).emit('message', messageWithUsers);
 
     if (receiver && users[receiver]) {
       io.to(users[receiver]).emit('sended', messageWithUsers);
     } else {
-      io.emit('sended', messageWithUsers); // Broadcast if no specific receiver
+      io.emit('sended', messageWithUsers);
     }
 
     res.status(200).json({
@@ -60,20 +57,17 @@ createMessage = async (req, res) => {
   }
 };
 
-// Get all messages
-getAllMessages = async (req, res) => {
-  console.log(req.params.id);
+export const getAllMessages = async (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
 
   try {
-    const messages = await messageModel
-      .find({
-        $or: [
-          { sender: req.user.id, receiver: req.params.id },
-          { sender: req.params.id, receiver: req.user.id },
-        ],
-      })
+    const messages = await Message.find({
+      $or: [
+        { sender: req.user.id, receiver: req.params.id },
+        { sender: req.params.id, receiver: req.user.id },
+      ],
+    })
       .populate('sender')
       .populate('receiver')
       .sort({ timestamp: -1 })
@@ -81,7 +75,7 @@ getAllMessages = async (req, res) => {
       .skip((page - 1) * limit);
 
     res.status(200).json({
-      messages: messages,
+      messages,
       success: true,
     });
   } catch (error) {
@@ -94,19 +88,22 @@ getAllMessages = async (req, res) => {
   }
 };
 
-const getMessageById = async (req, res) => {
+export const getMessageById = async (req, res) => {
   try {
-    const message = await messageModel.findById(req.params.id);
+    const message = await Message.findById(req.params.id);
+
     if (!message) {
       return res.status(404).json({
         message: 'Message not found',
         success: false,
       });
     }
+
     const io = getIo();
     io.emit('sended', message);
+
     res.status(200).json({
-      message: message,
+      message,
       success: true,
     });
   } catch (error) {
@@ -119,9 +116,9 @@ const getMessageById = async (req, res) => {
   }
 };
 
-const saveFile = async (req, res) => {
-  console.log(req.files);
-  var type = 'file';
+export const saveFile = async (req, res) => {
+  let type = 'file';
+
   if (!req.files) {
     return res.status(400).json({
       message: 'Please upload a file',
@@ -130,25 +127,21 @@ const saveFile = async (req, res) => {
   }
 
   const { file } = req.files;
-  // generate file name
   const fileName = `${Date.now()}_${file.name}`;
 
   try {
-    // Validate file type if type=image, set type to image and save image in '../public/messages/images'
     if (file.mimetype.includes('image')) {
-      file.mv(path.join(__dirname, '../public/messages/images', fileName));
+      await file.mv(path.join(__dirname, '../public/messages/images', fileName));
       type = 'image';
     } else {
-      // move file to uploads directory
-      file.mv(path.join(__dirname, '../public/messages/files', fileName));
-      type = 'file';
+      await file.mv(path.join(__dirname, '../public/messages/files', fileName));
     }
 
     res.status(200).json({
       message: 'File uploaded successfully',
       success: true,
       file: fileName,
-      type: type,
+      type,
     });
   } catch (error) {
     console.error(error);
@@ -160,7 +153,7 @@ const saveFile = async (req, res) => {
   }
 };
 
-module.exports = {
+export default {
   createMessage,
   getAllMessages,
   getMessageById,

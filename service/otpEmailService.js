@@ -1,25 +1,28 @@
-const nodemailer = require('nodemailer');
+import nodemailer from 'nodemailer';
 
-// Function to send email
-const sendEmail = async (email, link) => {
-  var transporter = nodemailer.createTransport({
+export const sendOtpEmail = async (email, otp) => {
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    console.warn('Email credentials are not configured; skipping OTP email.');
+    return false;
+  }
+
+  const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-      user: 'khadkacrystal23@gmail.com',
-      pass: 'lzbffcfujannnyvk',
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
     },
   });
 
-  var mailOptions = {
-    from: 'khadkacrystal23@gmail.com',
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
     to: email,
     subject: 'Password Reset',
-    text: `Click this link to reset your password: ${link}`,
+    text: `Your OTP is ${otp}`,
   };
 
   try {
-    let info = await transporter.sendMail(mailOptions);
-    console.log('Email sent: ' + info.response);
+    await transporter.sendMail(mailOptions);
     return true;
   } catch (error) {
     console.log(error);
@@ -27,4 +30,4 @@ const sendEmail = async (email, link) => {
   }
 };
 
-module.exports = sendEmail;
+export default sendOtpEmail;

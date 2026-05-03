@@ -1,39 +1,46 @@
-const router = require('express').Router();
-const userController = require('../controllers/userControllers');
-const { authGuard } = require('../middleware/authGuard');
+import express from 'express';
+import * as userController from '../controllers/userControllers.js';
+import { authGuard, optionalAuth } from '../middleware/authGuard.js';
+import { schemas, validate } from '../utils/validation.js';
 
-// Creating user registration route
-router.post('/create', userController.createUser);
+const router = express.Router();
 
-// Creating user login route
-router.post('/login', userController.loginUser);
-
-// Creating forgot password route
+/**
+ * Public routes
+ */
+router.post(
+  '/register',
+  validate(schemas.userRegister),
+  userController.createUser,
+);
+router.post('/create', validate(schemas.userRegister), userController.createUser);
+router.post('/login', validate(schemas.userLogin), userController.loginUser);
+router.post('/google', userController.googleLogin);
+router.post('/forgot-password', userController.forgotPassword);
 router.post('/forgot_password', userController.forgotPassword);
-
-// Creating reset password route
+router.post('/reset-password', userController.resetPassword);
 router.post('/reset_password', userController.resetPassword);
 
-// Get Current User Profile
+/**
+ * Protected routes
+ */
+router.get('/profile', authGuard, userController.getCurrentProfile);
 router.get('/current_profile', authGuard, userController.getCurrentProfile);
-
-// Get User Token
-router.post('/get_user_token', userController.getToken);
-
-// Update User Profile
+router.put('/profile', authGuard, userController.updateUserProfile);
 router.put('/update_profile', authGuard, userController.updateUserProfile);
+router.get('/all', optionalAuth, userController.getAllUser);
+router.get('/get_all_user', optionalAuth, userController.getAllUser);
 
-// Get all User
-router.get('/get_all_user', userController.getAllUser);
+/**
+ * Token routes
+ */
+router.post('/token/refresh', userController.getToken);
 
-// Forgot Password
-router.post('/forgot/email', userController.forgotPasswordByEmail);
+/**
+ * Email verification routes
+ */
+router.post('/email/forgot-password', userController.forgotPasswordByEmail);
+router.post('/email/reset-password', userController.resetPasswordByEmail);
+router.post('/email/verify-user', userController.getUserByGoogleEmail);
 
-// Reset Password
-router.post('/reset/email', userController.resetPasswordByEmail);
-
-// Route to handle google login
-router.post('/google', userController.googleLogin);
-router.post('/getGoogleUser', userController.getUserByGoogleEmail);
-
-module.exports = router;
+export default router;

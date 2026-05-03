@@ -1,7 +1,9 @@
-const router = require('express').Router();
+import express from 'express';
+import * as notificationController from '../controllers/notificationController.js';
+import { authGuard } from '../middleware/authGuard.js';
 
-const notificationController = require('../controllers/notificationController');
+const router = express.Router();
 
-router.post('/send', notificationController.createNotification);
+router.post('/send', authGuard, notificationController.createNotification);
 
-module.exports = router;
+export default router;

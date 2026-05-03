@@ -1,24 +1,59 @@
-const axios = require('axios');
-const sentOtp = async (phone, otp) => {
-  // setting state
-  let isSent = false;
-  //url to send data
-  const url = 'https://api.managepoint.co/api/sms/send';
-  //payload to send
+import axios from 'axios';
+
+const otpStore = new Map();
+
+export const generateOtp = () => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+};
+
+export const storeOtp = (key, otp, expiresAt) => {
+  otpStore.set(key, {
+    otp: otp.toString(),
+    expiresAt: new Date(expiresAt),
+  });
+};
+
+export const verifyOtp = (key, otp) => {
+  const storedOtp = otpStore.get(key);
+
+  if (!storedOtp) {
+    return false;
+  }
+
+  if (storedOtp.expiresAt < new Date()) {
+    otpStore.delete(key);
+    return false;
+  }
+
+  const isValid = storedOtp.otp === otp.toString();
+
+  if (isValid) {
+    otpStore.delete(key);
+  }
+
+  return isValid;
+};
+
+export const sendPhoneOtp = async (phone, otp) => {
+  if (!process.env.SMS_API_KEY) {
+    console.warn('SMS API key is not configured; skipping phone OTP.');
+    return false;
+  }
+
+  const url = process.env.SMS_API_URL || 'https://api.managepoint.co/api/sms/send';
   const payload = {
-    apiKey: 'ba1e3649-ff91-4a1c-ac6b-4911cd297d3d',
+    apiKey: process.env.SMS_API_KEY,
     to: phone,
     message: `Your OTP is ${otp}`,
   };
+
   try {
     const res = await axios.post(url, payload);
-    if (res.status === 200) {
-      isSent = true;
-    }
+    return res.status === 200;
   } catch (error) {
     console.log('Error Sending OTP', error.message);
+    return false;
   }
-  return isSent;
 };
 
-module.exports = sentOtp;
+export default sendPhoneOtp;

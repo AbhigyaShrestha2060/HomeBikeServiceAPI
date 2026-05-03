@@ -1,9 +1,11 @@
-const router = require('express').Router();
+import express from 'express';
+import * as paymentController from '../controllers/paymentController.js';
+import { authGuard } from '../middleware/authGuard.js';
 
-const paymentController = require('../controllers/paymentController');
-const { authGuard } = require('../middleware/authGuard');
+const router = express.Router();
 
-router.post('/initialize_khalti', paymentController.initializePayment);
-router.get('/complete-khalti-payment', paymentController.completeKhaltiPayment);
+router.post('/initialize', authGuard, paymentController.initializePayment);
+router.post('/initialize_khalti', authGuard, paymentController.initializePayment);
+router.get('/complete', paymentController.completeKhaltiPayment);
 
-module.exports = router;
+export default router;

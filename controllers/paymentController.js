@@ -1,31 +1,23 @@
-const {
+import Booking from '../models/bookingModel.js';
+import Payment from '../models/paymentModel.js';
+import {
   initializeKhaltiPayment,
   verifyKhaltiPayment,
-} = require('../service/khaltiService');
-const Payment = require('../models/paymentModel');
-const BookingModel = require('../models/bookingModel');
+} from '../service/khaltiService.js';
 
-// Route to initialize Khalti payment gateway
-const initializePayment = async (req, res) => {
-  console.log(req.body);
-
+export const initializePayment = async (req, res) => {
   try {
     const { totalPrice, website_url } = req.body;
-    var booking = req.body.bookings;
-    var bookings = [];
-    var bookingIds = [];
-    if (req.body.bookingList) {
-      bookingIds = req.body.bookingList.map((b) => b.bikeId);
-    }
-    if (!bookings) {
-      bookings = bookingIds;
-    } else {
-      bookings = booking.map((b) => b.bikeId);
-    }
+    const bookingInput = req.body.bookings || [];
+    const bookings = req.body.bookingList
+      ? req.body.bookingList.map((booking) => booking.bikeId)
+      : bookingInput.map((booking) => booking.bikeId);
 
-    console.log(bookings);
-    // Extract product names from populated products array
-    const productNames = bookings.map((p) => p.bikeNumber).join(', ');
+    const populatedBookings = await Booking.find({ _id: { $in: bookings } });
+    const productNames = populatedBookings
+      .map((booking) => booking.bikeNumber)
+      .filter(Boolean)
+      .join(', ');
 
     if (!productNames) {
       return res.send({
@@ -34,39 +26,36 @@ const initializePayment = async (req, res) => {
       });
     }
 
-    // Create a payment document without transactionId initially
-    const OrderModelData = await Payment.create({
-      bookings: bookings,
+    const orderModelData = await Payment.create({
+      bookings,
       paymentGateway: 'khalti',
       amount: totalPrice,
-      status: 'pending', // Set the initial status to pending
+      status: 'pending',
     });
 
-    // Initialize the Khalti payment
-    const paymentInitate = await initializeKhaltiPayment({
-      amount: 10 * 100, // amount should be in paisa (Rs * 100)
-      purchase_order_id: OrderModelData._id, // purchase_order_id because we need to verify it later
+    const paymentInitiate = await initializeKhaltiPayment({
+      amount: 10 * 100,
+      purchase_order_id: orderModelData._id,
       purchase_order_name: productNames,
-      return_url: `http://localhost:3000/thankyou`, // Return URL where we verify the payment
+      return_url: 'http://localhost:3000/thankyou',
       website_url: website_url || 'http://localhost:3000',
     });
 
-    // Update the payment record with the transactionId and pidx
     await Payment.updateOne(
-      { _id: OrderModelData._id },
+      { _id: orderModelData._id },
       {
         $set: {
-          transactionId: paymentInitate.pidx, // Assuming pidx as transactionId from Khalti response
-          pidx: paymentInitate.pidx,
+          transactionId: paymentInitiate.pidx,
+          pidx: paymentInitiate.pidx,
         },
-      }
+      },
     );
 
     res.json({
       success: true,
-      OrderModelData,
-      payment: paymentInitate,
-      pidx: paymentInitate.pidx,
+      OrderModelData: orderModelData,
+      payment: paymentInitiate,
+      pidx: paymentInitiate.pidx,
     });
   } catch (error) {
     console.error('Error initializing payment:', error);
@@ -77,21 +66,17 @@ const initializePayment = async (req, res) => {
   }
 };
 
-// This is our return URL where we verify the payment done by the user
-const completeKhaltiPayment = async (req, res) => {
-  console.log(req.query);
+export const completeKhaltiPayment = async (req, res) => {
   const { pidx, amount } = req.query;
-  const purchase_order_id = req.query.purchase_order_id || req.query.productId;
+  const purchaseOrderId = req.query.purchase_order_id || req.query.productId;
 
   try {
     const paymentInfo = await verifyKhaltiPayment(pidx);
-    console.log(paymentInfo);
 
-    // Validate the payment info
     if (
-      paymentInfo?.status !== 'Completed' || // Ensure the status is "Completed"
-      paymentInfo.pidx !== pidx || // Verify pidx matches
-      Number(paymentInfo.total_amount) !== Number(amount) // Compare the total amount
+      paymentInfo?.status !== 'Completed' ||
+      paymentInfo.pidx !== pidx ||
+      Number(paymentInfo.total_amount) !== Number(amount)
     ) {
       return res.status(400).json({
         success: false,
@@ -100,45 +85,18 @@ const completeKhaltiPayment = async (req, res) => {
       });
     }
 
-    // // Check if payment corresponds to a valid order
-    // const purchasedItemData = await OrderModel.findOne({
-    //   _id: purchase_order_id,
-    //   totalPrice: amount,
-    // });
-
-    // if (!purchasedItemData) {
-    //   return res.status(404).json({
-    //     success: false,
-    //     message: "Order data not found",
-    //   });
-    // }
-
-    // Update the order status to 'completed'
-    // await Payment.findByIdAndUpdate(
-    //   purchase_order_id,
-    //   {
-    //     $set: {
-    //       status: "completed",
-    //     },
-    //   }
-    // );
-
-    // Update payment record with verification data
     const paymentData = await Payment.findOneAndUpdate(
-      { _id: purchase_order_id },
+      { _id: purchaseOrderId },
       {
         $set: {
           pidx,
           transactionId: paymentInfo.transaction_id,
-          // dataFromVerificationReq: paymentInfo,
-          // apiQueryFromUser: req.query,
           status: 'success',
         },
       },
-      { new: true }
+      { new: true },
     );
 
-    // // Send success response
     res.status(200).json({
       success: true,
       message: 'Payment Successful',
@@ -155,4 +113,4 @@ const completeKhaltiPayment = async (req, res) => {
   }
 };
 
-module.exports = { initializePayment, completeKhaltiPayment };
+export default { initializePayment, completeKhaltiPayment };
